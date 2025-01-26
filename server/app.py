@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-from flask import Flask, request, make_response, jsonify
+from flask import Flask, request, jsonify, make_response
 from flask_migrate import Migrate
 from flask_restful import Api, Resource
 import os
-from models import db, Restaurant, RestaurantPizza, Pizza
+from models import db, Restaurant, Pizza, RestaurantPizza
 
-# Configure the database
+# Database configuration
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 DATABASE = os.environ.get("DB_URI", f"sqlite:///{os.path.join(BASE_DIR, 'app.db')}")
 
@@ -14,14 +14,14 @@ app.config["SQLALCHEMY_DATABASE_URI"] = DATABASE
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.json.compact = False
 
-# Initialize database and migrations
+# Initialize Flask extensions
 migrate = Migrate(app, db)
 db.init_app(app)
 
 # Initialize Flask-RESTful API
 api = Api(app)
 
-# Routes and Resources
+
 @app.route("/")
 def index():
     return "<h1>Code Challenge</h1>"
@@ -29,14 +29,10 @@ def index():
 
 class Restaurants(Resource):
     def get(self):
-        """Retrieve all restaurants."""
+        """GET /restaurants: Return all restaurants."""
         restaurants = Restaurant.query.all()
         response = [
-            {
-                "id": restaurant.id,
-                "name": restaurant.name,
-                "address": restaurant.address,
-            }
+            {"id": restaurant.id, "name": restaurant.name, "address": restaurant.address}
             for restaurant in restaurants
         ]
         return make_response(jsonify(response), 200)
@@ -44,7 +40,7 @@ class Restaurants(Resource):
 
 class RestaurantByID(Resource):
     def get(self, id):
-        """Retrieve a single restaurant by its ID."""
+        """GET /restaurants/<int:id>: Retrieve restaurant by ID."""
         restaurant = Restaurant.query.get(id)
         if not restaurant:
             return make_response(jsonify({"error": "Restaurant not found"}), 404)
@@ -56,6 +52,8 @@ class RestaurantByID(Resource):
             "restaurant_pizzas": [
                 {
                     "id": rp.id,
+                    "pizza_id": rp.pizza_id,
+                    "restaurant_id": rp.restaurant_id,
                     "price": rp.price,
                     "pizza": {
                         "id": rp.pizza.id,
@@ -69,10 +67,14 @@ class RestaurantByID(Resource):
         return make_response(jsonify(response), 200)
 
     def delete(self, id):
-        """Delete a restaurant by its ID."""
+        """DELETE /restaurants/<int:id>: Delete restaurant and associated pizzas."""
         restaurant = Restaurant.query.get(id)
         if not restaurant:
             return make_response(jsonify({"error": "Restaurant not found"}), 404)
+
+        # Delete associated RestaurantPizzas first
+        for rp in restaurant.restaurant_pizzas:
+            db.session.delete(rp)
 
         db.session.delete(restaurant)
         db.session.commit()
@@ -81,7 +83,7 @@ class RestaurantByID(Resource):
 
 class Pizzas(Resource):
     def get(self):
-        """Retrieve all pizzas."""
+        """GET /pizzas: Retrieve all pizzas."""
         pizzas = Pizza.query.all()
         response = [
             {"id": pizza.id, "name": pizza.name, "ingredients": pizza.ingredients}
@@ -92,19 +94,20 @@ class Pizzas(Resource):
 
 class RestaurantPizzas(Resource):
     def post(self):
-        """Create a new RestaurantPizza."""
+        """POST /restaurant_pizzas: Create a new RestaurantPizza."""
         data = request.get_json()
-        price = data.get("price")
-        pizza_id = data.get("pizza_id")
-        restaurant_id = data.get("restaurant_id")
 
-        # Validate price range
+        # Validate the price range
+        price = data.get("price")
         if not (1 <= price <= 30):
             return make_response(jsonify({"errors": ["validation errors"]}), 400)
 
         try:
+            # Create and save the new RestaurantPizza
             restaurant_pizza = RestaurantPizza(
-                price=price, pizza_id=pizza_id, restaurant_id=restaurant_id
+                price=price,
+                pizza_id=data.get("pizza_id"),
+                restaurant_id=data.get("restaurant_id"),
             )
             db.session.add(restaurant_pizza)
             db.session.commit()
