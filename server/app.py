@@ -41,7 +41,8 @@ class Restaurants(Resource):
 class RestaurantByID(Resource):
     def get(self, id):
         """GET /restaurants/<int:id>: Retrieve restaurant by ID."""
-        restaurant = Restaurant.query.get(id)
+        # Replaced deprecated Restaurant.query.get(id) with db.session.get(Restaurant, id)
+        restaurant = db.session.get(Restaurant, id)
         if not restaurant:
             return make_response(jsonify({"error": "Restaurant not found"}), 404)
 
@@ -68,7 +69,8 @@ class RestaurantByID(Resource):
 
     def delete(self, id):
         """DELETE /restaurants/<int:id>: Delete restaurant and associated pizzas."""
-        restaurant = Restaurant.query.get(id)
+        # Replaced deprecated Restaurant.query.get(id) with db.session.get(Restaurant, id)
+        restaurant = db.session.get(Restaurant, id)
         if not restaurant:
             return make_response(jsonify({"error": "Restaurant not found"}), 404)
 
@@ -79,7 +81,6 @@ class RestaurantByID(Resource):
         db.session.delete(restaurant)
         db.session.commit()
         return make_response("", 204)
-
 
 class Pizzas(Resource):
     def get(self):

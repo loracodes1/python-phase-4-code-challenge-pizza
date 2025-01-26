@@ -13,13 +13,13 @@ metadata = MetaData(
 db = SQLAlchemy(metadata=metadata)
 
 
-class Restaurant(db.Model, SerializerMixin):
-    __tablename__ = "restaurants"
+class Restaurant(db.Model):
+    __tablename__ = 'restaurants'
 
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String, nullable=False)
-    address = db.Column(db.String, nullable=False)
-
+    id = Column(Integer, primary_key=True)
+    name = Column(String)
+    address = Column(String)
+    restaurant_pizzas = relationship('RestaurantPizza', back_populates='restaurant')
     # Relationship with RestaurantPizza
     restaurant_pizzas = relationship(
         "RestaurantPizza", back_populates="restaurant", cascade="all, delete-orphan"
@@ -34,33 +34,28 @@ class Restaurant(db.Model, SerializerMixin):
         return f"<Restaurant {self.name}>"
 
 
-class Pizza(db.Model, SerializerMixin):
-    __tablename__ = "pizzas"
+class Pizza(db.Model):
+    __tablename__ = 'pizzas'
 
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String, nullable=False)
-    ingredients = db.Column(db.String, nullable=False)
-
-    # Relationship with RestaurantPizza
-    restaurants = association_proxy("restaurant_pizzas", "restaurant")
-
+    id = Column(Integer, primary_key=True)
+    name = Column(String)
+    ingredients = Column(String)
+    restaurant_pizzas = relationship('RestaurantPizza', back_populates='pizza')
     serialize_rules = ("-restaurants.pizzas",)
 
     def __repr__(self):
         return f"<Pizza {self.name}>"
 
 
-class RestaurantPizza(db.Model, SerializerMixin):
-    __tablename__ = "restaurant_pizzas"
+class RestaurantPizza(db.Model):
+    __tablename__ = 'restaurant_pizzas'
 
-    id = db.Column(db.Integer, primary_key=True)
-    price = db.Column(db.Integer, nullable=False)
-    restaurant_id = db.Column(db.Integer, ForeignKey("restaurants.id"), nullable=False)
-    pizza_id = db.Column(db.Integer, ForeignKey("pizzas.id"), nullable=False)
-
-    # Relationships with Restaurant and Pizza
-    restaurant = relationship("Restaurant", back_populates="restaurant_pizzas")
-    pizza = relationship("Pizza", back_populates="restaurants")
+    id = Column(Integer, primary_key=True)
+    price = Column(Integer)
+    restaurant_id = Column(Integer, ForeignKey('restaurants.id'))
+    pizza_id = Column(Integer, ForeignKey('pizzas.id'))
+    restaurant = relationship('Restaurant', back_populates='restaurant_pizzas')
+    pizza = relationship('Pizza', back_populates='restaurant_pizzas')
 
     # Validation for price
     @validates("price")
